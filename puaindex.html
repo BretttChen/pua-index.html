@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>情勒俱樂部：編年史</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #050505; margin: 0; overflow: hidden; }
+        
+        #loading {
+            color: #ff00ff; display: flex; justify-content: center; align-items: center;
+            height: 100vh; font-family: monospace; font-size: 20px; background: #000; text-align: center;
+        }
+
+        .glitch-text { text-shadow: 2px 2px 0px #ff0055, -2px -2px 0px #00ffff; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+        
+        .border-text-white { -webkit-text-stroke: 1px white; }
+        .border-text-red { -webkit-text-stroke: 1px #ef4444; }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .animate-shake { animation: shake 0.5s; }
+
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+        .animate-float-up { animation: float-up 1.5s ease-out forwards; }
+
+        @keyframes glitch-screen {
+            0% { clip-path: inset(40% 0 61% 0); transform: translate(-2px, 2px); }
+            20% { clip-path: inset(92% 0 1% 0); transform: translate(2px, -1px); filter: hue-rotate(90deg); }
+            40% { clip-path: inset(43% 0 1% 0); transform: translate(1px, 3px); }
+            60% { clip-path: inset(25% 0 58% 0); transform: translate(2px, 2px); }
+            80% { clip-path: inset(54% 0 7% 0); transform: translate(-1px, -2px); filter: hue-rotate(-90deg); }
+            100% { clip-path: inset(58% 0 43% 0); transform: translate(2px, 1px); }
+        }
+        .animate-glitch-screen { animation: glitch-screen 0.3s linear infinite; }
+    </style>
+    
+    <script>
+        window.onerror = function(message) {
+            if (message.includes("ResizeObserver loop")) return;
+            console.error(message);
+        };
+    </script>
+</head>
+<body>
+    <div id="root">
+        <div id="loading">正在加入情勒中~</div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = window.React;
+
+        // --- Icons ---
+        const IconBase = ({ size = 24, className, children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const Shield = (props) => <IconBase {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></IconBase>;
+        const Heart = (props) => <IconBase {...props}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></IconBase>;
+        const Coins = (props) => <IconBase {...props}><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path><path d="M17.12 10.06C15.22 6.6 11.39 5.34 8 7.37"></path></IconBase>;
+        const Activity = (props) => <IconBase {...props}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></IconBase>;
+        const MessageSquare = (props) => <IconBase {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></IconBase>;
+        const Monitor = (props) => <IconBase {...props}><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></IconBase>;
+        const Utensils = (props) => <IconBase {...props}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></IconBase>;
+        const HeartCrack = (props) => <IconBase {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><path d="m12 13-3-3 2-2-3-3"></path></IconBase>;
+        const TrendingUp = (props) => <IconBase {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></IconBase>;
+        const AlertTriangle = (props) => <IconBase {...props}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></IconBase>;
+        const Play = (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"></polygon></IconBase>;
+        const X = (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>;
+
+        // --- Audio Engine ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playSound = (type) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            switch (type) {
+                case 'click':
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1); break;
+                case 'attack':
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2); break;
+                case 'skill_heavy':
+                    osc.type = 'square'; osc.frequency.setValueAtTime(100, now); osc.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+                    gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4); break;
+                case 'glitch':
+                    osc.type = 'sawtooth';
+                    for(let i=0; i<5; i++) osc.frequency.setValueAtTime(200 + Math.random()*500, now + i*0.05);
+                    gainNode.gain.setValueAtTime(0.15, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3); break;
+                case 'heal':
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.3);
+                    gainNode.gain.setValueAtTime(0.1, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3); break;
+                case 'damage':
+                    osc.type = 'square'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(100, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.15, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1); break;
+                case 'coin':
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, now); osc.frequency.setValueAtTime(1600, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2); break;
+            }
+        };
+
+        // --- Data Blueprint (雙軌 RNG 數據) ---
+        const CHANNELS = [
+            { id: 'chat', name: '文字聊天', icon: MessageSquare, desc: '已讀不回是最大的慈悲', type: 'social', color: 'text-blue-400',
+              good: ["大家熱烈回應你的貼圖，覺得自己還是受歡迎的。", "有人主動關心你今天過得好嗎，心底湧起暖意。"],
+              bad: ["你傳了貼圖，但群組瞬間冷場，沒人理你。", "發現你的發言被截圖到另一個小群組嘲笑。"] },
+            { id: 'valorant', name: '瓦羅蘭', icon: Monitor, desc: '這裡只有戰犯沒有隊友', type: 'combat', color: 'text-red-500',
+              good: ["這場手感發燙，CARRY全場，隊友稱讚你是神。", "遇到友善溝通的隊友，順利爬分，心情大好。"],
+              bad: ["戰犯聚集。被隊友嘴到懷疑人生，氣氛極度惡劣。", "連續遇到外掛與掛網仔，心態徹底炸裂。"] },
+            { id: 'maple', name: '楓之谷', icon: TrendingUp, desc: '燒錢燒陰德，虛度光陰', type: 'farm', color: 'text-green-400',
+              good: ["打怪掉落了稀有道具，小賺一筆但沒有變現。", "跟公會成員愉快聊天，度過了平靜的時光。"],
+              bad: ["衝裝連續失敗，傾家蕩產，感到無比空虛。", "被路人搶怪還被嘲諷，氣到砸滑鼠。"] },
+            { id: 'tft', name: '聯盟戰旗', icon: Activity, desc: '反正你下一把還是會輸', type: 'strategy', color: 'text-yellow-400',
+              good: ["陣容順利成型，成功吃雞，智商壓制全場。", "神抽三星五費卡，體驗到極致的多巴胺分泌。"],
+              bad: ["老八出局，運氣極差，跟你是個魯蛇一樣。", "被發牌員針對，想玩的陣容全部同行。"] },
+            { id: 'movie', name: '影城', icon: Play, desc: '假裝我們有正常社交', type: 'leisure', color: 'text-purple-400',
+              good: ["約到人一起看電影，享受了難得的放鬆時光。", "電影劇情超好看，獲得了深刻的情感共鳴。"],
+              bad: ["約看電影，阿偉要去幹68號沒空，你只好自己去。", "電影太爛，浪費時間又浪費錢，心情更差了。"] }
+        ];
+
+        const SHELTER = { id: 'aying', name: '阿英炒麵', icon: Utensils, cost: 1, heal: 15 };
+
+        // 4 位主角設定與專屬大絕招
+        const PROTAGONISTS = [
+            { 
+                id: 'meow', name: '口喵口喵醬 (護校生)', role: '預備役情勒護士', 
+                desc: '擅長用專業術語包裝情緒勒索。「我是為你好」是她的終極武器。口頭禪「口喵」能對聽覺造成永久性損傷。', 
+                skill: '核心注射', skillIcon: '💉', glow: 'hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] border-pink-900/30' 
+            },
+            { 
+                id: 'latte', name: '拿鐵 (巨龍)', role: '社交剝削魔', 
+                desc: '女郎只是消耗品，前任比鬼還可怕。擅長無縫接軌與數值轉移。「我只是太害怕失去了」是他的起手式。', 
+                skill: '做愛', skillIcon: '👊', glow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.5)] border-red-900/30' 
+            },
+            { 
+                id: 'mao', name: '毛 (狂戰士)', role: '仇恨發動機', 
+                desc: '歧視產生力量，被放鴿子會起肖。一旦啟動仇恨發動機，將對周遭進行無差別真實傷害。「這世界對我太不公平」是他的教條。', 
+                skill: '衝撞外勞', skillIcon: '💥', glow: 'hover:shadow-[0_0_20px_rgba(249,115,22,0.5)] border-orange-900/30' 
+            },
+            { 
+                id: 'caitou', name: '菜頭 (吉祥物)', role: '存在感稀薄', 
+                desc: '活著就是被笑，女郎必定被弄丟的廢物。擅長用極低的姿態換取微薄的同情。「我又搞砸了對不對」是他的日常。', 
+                skill: '1212', skillIcon: '🛡️', glow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] border-blue-900/30' 
+            }
+        ];
+
+        const INITIAL_MEMBERS = [
+            { id: 'weapon', name: 'Weapon主席', status: 'active', role: '獨裁暴君', gender: 'male' },
+            { id: 'awei', name: '阿偉', status: 'active', role: '68號專屬孝子', gender: 'male' },
+            { id: 'fish', name: '魚', status: 'active', role: '母親狂戰士', gender: 'female' },
+            { id: 'wang', name: '汪汪', status: 'active', role: '必輸賭狗', gender: 'male' },
+            { id: 'azumii', name: 'Azumii', status: 'active', role: '高階綠茶', gender: 'female' },
+            { id: 'daqi', name: '大奇', status: 'active', role: '舔狗補師', gender: 'male' },
+            { id: 'potato', name: '土豆', status: 'active', role: 'M屬性社畜', gender: 'male' },
+            { id: 'insect', name: '隱刺蟲', status: 'active', role: '白目巨嬰', gender: 'male' },
+            { id: 'aji', name: '阿雞', status: 'npc', role: '紅顏禍水', gender: 'female' },
+            { id: 'sora', name: '索拉醬', status: 'active', role: '環境觀測者', gender: 'female' },
+            { id: 'incheon', name: '仁川少女', status: 'hidden', role: '高分段幻影', gender: 'female' }
+        ];
+
+        const STORY_LINES = {
+            act1: [
+                "【主線】拿鐵失戀了，將悲憤轉化為積分，整場沉默鎖定決鬥者。",
+                "【主線】歷時一個月，拿鐵成為群組首位超凡，激起群組競技內卷開端。",
+                "【事件】阿雞被騷擾...", // D3 Incident Trigger point
+                "【主線】瓦羅蘭排位引發劇烈摩擦，Weapon 主席利用系統漏洞啟動【絕對獨裁】，沒收眾人發言權。",
+                "【主線】Tyler 與小雅確立為頂級戰力；菜頭因壞習慣屢遭嫌棄。索拉醬因環境變化進入淡出倒數。",
+                "【主線】阿偉頻繁抽取共用金幣，試圖尋找「68號技師」緩解壓力。",
+                "【主線】魚對阿偉發動【逼婚】技能，隱形的情勒壓力掩蓋了資金鏈即將斷裂的真相。",
+                "【主線】汪汪拒絕了大奇的純愛治癒，將殘存資源全壓在德州撲克上，並遭遇 Azumii 惡意詐欺。",
+                "【主線】汪汪資金與 SAN 值徹底歸零，觸發絕對事件【登出俱樂部】。"
+            ],
+            act2: [
+                "【主線】系統底層邏輯異變為「高壓仇女領域」，女性標籤單位生命週期極速縮短。",
+                "【主線】拿鐵發展出病態適應，高頻招募「拿鐵女郎」作為消耗品。",
+                "【主線】拿鐵在女郎生命週期耗盡前發動【重拳出擊】，強制分手轉換為自身數值。",
+                "【主線】菜頭試圖在聊天區保護女郎，但在無處不在的惡意下逐一弄丟，確立其無力的吉祥物定位。",
+                "【主線】汪汪留下的唯一痕跡「仁川少女」，逐漸取代汪汪成為最高牌位。",
+                "【主線】仁川少女走向追求強大的孤高道路，令許多想成為家人的人傷心。",
+                "【主線】「128小時甜蜜的家」正式潰散，淪為休息站而非歸宿。毛則未受影響，專心囤積線下聚會禮物。"
+            ],
+            act3: [
+                "【主線】資源見底，容錯率降至 0%。槍戰幫與楓谷幫產生嚴重結構性分歧。",
+                "【主線】隱刺蟲仗著【無邊界感】特性，持續發布微量精神傷害。",
+                "【主線】土豆的【容忍計數器】滿載，以斬斷十年友誼為代價，發動終極技能。",
+                "【主線】隱刺蟲遭永久靜音並驅逐，俱樂部喪失重要牽制戰力，內部鏈結斷裂。",
+                "【主線】毛滿懷期待帶著高階禮物前往線下聚會。",
+                "【主線】敵對勢力台中幫發動最高階環境災難：【13-0 絕對失約】。",
+                "【主線】毛的心意遭徹底辜負，理智斷線，觸發專屬被動【外勞衝撞本能】。",
+                "【主線】無視防禦的無差別真實傷害爆發，對伺服器造成不可逆的毀滅性打擊。"
+            ]
+        };
+
+        const INCIDENT_STAGES = {
+            3: { title: "D3: 遭受7000字作文攻擊", content: "偵測到敵對單位（白癡男性），因為對阿雞暈船想向她道歉寫了7000字超長作文。", color: "text-red-500" },
+            4: { title: "D4: 受到7000字大規模轟炸", content: "「7000字道歉文」開始廣域精神污染。全體成員 SAN 值急速下降,請趕快到阿英炒麵補充。", color: "text-orange-500" },
+            5: { title: "D5: 戰略僵持階段", content: "群組首次戰略集結。大家開始聲討7000字白癡男性,但也因此受到影響開始承受並消耗能量,最後大家都惡化變成白癡...", color: "text-yellow-500" },
+            6: { title: "D6: 防禦成功與轉進", content: "白癡男性(入侵者)AP 耗盡，啟動物理隔離。主戰場鎖定為「槍戰頻道 (瓦羅蘭)」，進入第一章。", color: "text-green-500" }
+        };
+
+        const FloatingText = ({ text, x, y, type }) => (
+            <div className={`fixed pointer-events-none animate-float-up font-bold text-lg z-[100] drop-shadow-md ${type === 'damage' ? 'text-red-500 text-2xl font-black' : type === 'heal' ? 'text-green-400' : type === 'ebl' ? 'text-purple-400 text-2xl font-black' : 'text-yellow-400'}`} style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}>{text}</div>
+        );
+
+        // --- Main System ---
+        function EmotionalBlackmailClub() {
+            const [gameState, setGameState] = useState('start');
+            const [hero, setHero] = useState(null);
+            
+            // Core State (Initial SAN 100)
+            const [resources, setResources] = useState({ san: 100, ebl: 0, gold: 3 });
+            const [members, setMembers] = useState(INITIAL_MEMBERS);
+            const [logs, setLogs] = useState([]);
+            
+            const [turnDisplay, setTurnDisplay] = useState(0); 
+            const turnRef = useRef(1);
+            const shelterUsageRef = useRef(0);
+            const latteSkillCountRef = useRef(0);
+            const isProcessing = useRef(false);
+            
+            // UI Effects
+            const [activeEffect, setActiveEffect] = useState(null);
+            const [activeIncident, setActiveIncident] = useState(null);
+            const [showRules, setShowRules] = useState(false);
+            const [showTargetModal, setShowTargetModal] = useState(false);
+            const [floatingTexts, setFloatingTexts] = useState([]);
+            const logsEndRef = useRef(null);
+
+            useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
+
+            const triggerVisualEffect = (eff) => { setActiveEffect(eff); setTimeout(() => setActiveEffect(null), 500); };
+            const spawnFloatingText = (text, type) => {
+                const id = Date.now() + Math.random(); 
+                const x = '70%'; 
+                const y = '30%'; 
+                setFloatingTexts(prev => [...prev, { id, text, x, y, type }]);
+                setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 1500);
+            };
+
+            const setMemberStatus = useCallback((id, status) => {
+                setMembers(prev => prev.map(m => m.id === id ? { ...m, status } : m));
+                try{ playSound('glitch'); } catch(e){}
+                triggerVisualEffect('glitch');
+            }, []);
+
+            // --- System Boundary Evaluator ---
+            const evaluateEnding = useCallback((forcedEnding = false) => {
+                const active = members.filter(m => m.status === 'active').length;
+                const total = members.filter(m => m.status !== 'hidden').length;
+                const rate = active / total;
+                const currentSan = resources.san;
+
+                if (forcedEnding || currentSan <= 60 || rate < 0.5) setGameState('ending_A');
+                else if (latteSkillCountRef.current >= 10) setGameState('ending_B');
+                else if (currentSan >= 100 && currentSan <= 105) setGameState('ending_C');
+                else if (currentSan > 110 && rate >= 0.8) setGameState('ending_D');
+                else setGameState('ending_A'); 
+            }, [members, resources.san]);
+
+            const advanceChapter = useCallback((currentAct) => {
+                turnRef.current = 1;
+                setTurnDisplay(0);
+                shelterUsageRef.current = 0;
+                setResources(p => ({ ...p, san: 100 })); // 硬性重置為 100
+                
+                if (currentAct === 'act1') {
+                    setGameState('act2'); 
+                    setLogs(prev => [...prev, { text: '【第二章：情感剝削】開始。', type: 'chapter', timestamp: 'SYS' }]);
+                    try{ playSound('glitch'); }catch(e){}
+                } else if (currentAct === 'act2') {
+                    setGameState('act3'); 
+                    setLogs(prev => [...prev, { text: '【第三章：邊界崩塌】開始。', type: 'chapter', timestamp: 'SYS' }]);
+                    try{ playSound('glitch'); }catch(e){}
+                } else if (currentAct === 'act3') {
+                    evaluateEnding();
+                }
+            }, [evaluateEnding]);
+
+            const triggerStoryHook = useCallback((act, index) => {
+                if (act === 'act1' && index === 7) { setMemberStatus('wang', '滾蛋了'); setMemberStatus('sora', '淡出'); }
+                if (act === 'act2' && index === 4) { setMemberStatus('incheon', 'active'); }
+                if (act === 'act3' && index === 3) { setMemberStatus('insect', '被封印'); setMemberStatus('potato', '自閉中'); }
+                if (act === 'act3' && index === 6) {
+                    spawnFloatingText(`伺服器崩潰 -40`, 'damage');
+                    triggerVisualEffect('shake');
+                    setResources(p => ({ ...p, san: p.san - 40 })); 
+                }
+            }, [setMemberStatus]);
+
+            // 強制快轉並推進章節 (Upper Bound)
+            const triggerFastForward = useCallback((act) => {
+                isProcessing.current = true;
+                try{ playSound('glitch'); }catch(e){}
+                triggerVisualEffect('glitch');
+                
+                const lines = STORY_LINES[act];
+                const currentTurn = turnRef.current;
+                const startIdx = currentTurn - 1;
+
+                const remainingLogs = [];
+
+                if (lines && startIdx < lines.length) {
+                    for (let i = startIdx; i < lines.length; i++) {
+                        remainingLogs.push({ text: lines[i], type: 'story', timestamp: `SYS` });
+                        triggerStoryHook(act, i);
+                    }
+                }
+
+                setLogs(prev => [...prev, ...remainingLogs]);
+
+                setTimeout(() => {
+                    advanceChapter(act);
+                    isProcessing.current = false;
+                }, 2500);
+            }, [triggerStoryHook, advanceChapter]);
+
+            // Track SAN Lower Boundaries
+            useEffect(() => {
+                if (!gameState.startsWith('act') || isProcessing.current) return;
+                
+                if (resources.san <= 60) {
+                    setLogs(prev => [...prev, { text: '【吸收壁 B 觸發】SAN 跌破閾值，系統無法承受環境毒性，強制進入結算程序。', type: 'alert', timestamp: 'SYS' }]);
+                    isProcessing.current = true;
+                    setTimeout(() => evaluateEnding(true), 2000);
+                }
+            }, [resources.san, gameState, evaluateEnding]);
+
+            // --- Player Actions (Dual Track Logic) ---
+            const handleChannelAction = (channel) => {
+                if (isProcessing.current || activeIncident || !gameState.startsWith('act')) return;
+                
+                // Track B (RNG Logic: 50% Good / 50% Bad)
+                const isGoodOutcome = Math.random() >= 0.5;
+                const sanChange = isGoodOutcome ? 5 : -5;
+                const actionText = isGoodOutcome 
+                    ? channel.good[Math.floor(Math.random() * channel.good.length)]
+                    : channel.bad[Math.floor(Math.random() * channel.bad.length)];
+
+                // Sound and visual feedback based on outcome
+                if (isGoodOutcome) {
+                    try{ playSound('heal'); }catch(e){}
+                    spawnFloatingText(`SAN +5`, 'heal');
+                } else {
+                    try{ playSound('damage'); }catch(e){}
+                    triggerVisualEffect('shake');
+                    spawnFloatingText(`SAN -5`, 'damage');
+                }
+
+                // Economy side effects based on channel type (Removed Gold Gain completely)
+                let goldChange = 0; let eblChange = 0;
+                if (channel.type === 'leisure' && !isGoodOutcome) { goldChange = -1; spawnFloatingText('Gold -1', 'gold'); }
+                if (channel.type === 'toxic') eblChange = 10;
+
+                const newSan = resources.san + sanChange;
+                let finalEbl = resources.ebl + eblChange;
+
+                if (newSan >= 115) {
+                    finalEbl += 1;
+                    spawnFloatingText(`情勒值 +1`, 'ebl');
+                }
+
+                setResources(prev => ({ san: newSan, gold: Math.max(0, prev.gold + goldChange), ebl: finalEbl }));
+
+                const currentTurn = turnRef.current;
+                setTurnDisplay(currentTurn);
+                turnRef.current += 1;
+
+                // Track A (Main Story Logic)
+                const lines = STORY_LINES[gameState];
+                const storyText = (lines && currentTurn <= lines.length) ? lines[currentTurn - 1] : null;
+                
+                if (storyText) {
+                    triggerStoryHook(gameState, currentTurn - 1);
+                }
+
+                setLogs(prev => {
+                    const newLogs = [...prev];
+                    newLogs.push({ text: `【${channel.name}】${actionText}`, type: 'normal', timestamp: `D${currentTurn}` });
+                    if (storyText && !(gameState === 'act1' && currentTurn === 3)) { // Skip D3 story log if incident triggers
+                        newLogs.push({ text: storyText, type: 'story', timestamp: `D${currentTurn}` });
+                    }
+                    return newLogs;
+                });
+
+                // Boundary Interception Logic (Upper Bound only, lower bound handled in useEffect)
+                if (newSan >= 115) {
+                    triggerFastForward(gameState);
+                    return;
+                }
+
+                // D3 Incident Execution
+                if (gameState === 'act1' && currentTurn === 3) {
+                    setTimeout(() => {
+                        setActiveIncident(3);
+                        triggerVisualEffect('glitch');
+                        try{ playSound('glitch'); }catch(e){}
+                    }, 500);
+                }
+            };
+
+            const handleIncidentNext = () => {
+                try{ playSound('click'); }catch(e){}
+                const nextStep = activeIncident + 1;
+                const stage = INCIDENT_STAGES[activeIncident];
+                setLogs(prev => [...prev, { text: `【事件】${stage.title}: ${stage.content}`, type: 'story', timestamp: `D${activeIncident}` }]);
+
+                if (nextStep <= 6) {
+                    setActiveIncident(nextStep);
+                } else {
+                    setActiveIncident(null);
+                    setTurnDisplay(7);
+                    turnRef.current = 8;
+                }
+            };
+
+            const visitShelter = () => {
+                if (isProcessing.current || !gameState.startsWith('act') || activeIncident) return;
+                if (shelterUsageRef.current >= 3) {
+                    try{ playSound('click'); }catch(e){}
+                    setLogs(prev => [...prev, { text: '【拒絕存取】阿英阿姨說本章的炒麵已經賣完了。', type: 'alert', timestamp: 'SYS' }]);
+                    return;
+                }
+                if (resources.gold >= SHELTER.cost) {
+                    try{ playSound('heal'); }catch(e){}
+                    spawnFloatingText(`SAN +15`, 'heal');
+                    spawnFloatingText(`Gold -1`, 'gold');
+                    
+                    const newSan = resources.san + 15;
+                    let finalEbl = resources.ebl;
+
+                    if (newSan >= 115) {
+                        finalEbl += 1;
+                        spawnFloatingText(`情勒值 +1`, 'ebl');
+                    }
+
+                    setResources(prev => ({ ...prev, gold: prev.gold - SHELTER.cost, san: newSan, ebl: finalEbl }));
+                    
+                    shelterUsageRef.current += 1;
+
+                    // Shelter actions do not advance turn
+                    setLogs(prev => [...prev, { text: `消費 1 Gold 食用阿英炒麵，理智恢復。(本章剩餘: ${3 - shelterUsageRef.current})`, type: 'heal', timestamp: `SYS` }]);
+
+                    if (newSan >= 115) {
+                        triggerFastForward(gameState);
+                    }
+                } else {
+                    try{ playSound('click'); }catch(e){}
+                    setLogs(prev => [...prev, { text: '【餘額不足】無法購買避難所物資。', type: 'alert', timestamp: 'SYS' }]);
+                }
+            };
+
+            const openTargetModal = () => {
+                if (isProcessing.current || !gameState.startsWith('act') || activeIncident) return;
+                if (resources.ebl < 1) { 
+                    setLogs(prev => [...prev, { text: '【條件未滿】情勒值(EBL)不足 1，無法發動大絕招。', type: 'alert', timestamp: 'SYS' }]);
+                    return; 
+                }
+                setShowTargetModal(true);
+            };
+
+            const executeUltimateSkill = (target) => {
+                setShowTargetModal(false);
+                try{ playSound('skill_heavy'); }catch(e){}
+                triggerVisualEffect('glitch');
+                
+                let sanHeal = 0;
+                let skillLogText = '';
+                if (hero.id === 'latte') {
+                    latteSkillCountRef.current += 1;
+                    sanHeal = 30;
+                } else if (hero.id === 'mao') {
+                    sanHeal = 5;
+                } else if (hero.id === 'caitou') {
+                    sanHeal = 10;
+                } else if (hero.id === 'meow') {
+                    sanHeal = 25;
+                }
+                
+                skillLogText = `發動大絕招：【${hero.skill}】痛扁了 [${target.name}]！ (SAN+${sanHeal})`;
+
+                const newSan = resources.san + sanHeal;
+                let finalEbl = resources.ebl - 1;
+
+                if (newSan >= 115) {
+                    finalEbl += 1;
+                    spawnFloatingText(`情勒值 +1`, 'ebl');
+                }
+
+                setResources(prev => ({ ...prev, san: newSan, ebl: finalEbl }));
+                spawnFloatingText(`SAN +${sanHeal}`, 'heal');
+                
+                const currentTurn = turnRef.current;
+                setTurnDisplay(currentTurn);
+                turnRef.current += 1;
+
+                setLogs(prev => [
+                    ...prev, 
+                    { text: skillLogText, type: 'skill', timestamp: `D${currentTurn}` },
+                    { text: `【${target.name}】: 「對不起對不起我錯了！拜託放過我！啊啊啊啊！」 (瘋狂求饒)`, type: 'alert', timestamp: `D${currentTurn}` }
+                ]);
+
+                if (newSan >= 115) {
+                    triggerFastForward(gameState);
+                }
+            };
+
+            // Dynamic Data Filtering
+            const onlineMembers = members.filter(m => m.status === 'active' || m.status === 'npc');
+            const offlineMembers = members.filter(m => m.status !== 'active' && m.status !== 'npc' && m.status !== 'hidden');
+
+            // --- Render Logic ---
+            if (gameState === 'start') {
+                return (
+                    <div className="flex flex-col items-center justify-center h-screen space-y-12 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950 via-gray-900 to-black text-white p-8 relative overflow-hidden">
+                        <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500 tracking-widest glitch-text z-10 text-center drop-shadow-[0_0_20px_rgba(236,72,153,0.5)] leading-normal pt-2">情勒俱樂部</h1>
+                        <h2 className="text-2xl text-pink-400 font-bold tracking-widest z-10 animate-pulse drop-shadow-md">歡迎來到溫暖的情勒俱樂部&gt;&lt;</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[90%] xl:max-w-7xl z-10">
+                            {PROTAGONISTS.map(p => (
+                            <button key={p.id} onClick={() => {setHero(p); setGameState('act1'); try{playSound('click');}catch(e){}}} className={`group relative p-8 border border-gray-700/50 rounded-2xl bg-gray-900/80 backdrop-blur-sm transition-all hover:-translate-y-2 text-left ${p.glow} shadow-2xl hover:shadow-indigo-500/20`}>
+                                <div className="text-5xl mb-6 group-hover:scale-110 transition-transform duration-300">{p.skillIcon}</div>
+                                <h3 className={`text-2xl font-black mb-2 tracking-wide ${p.id === 'meow' ? 'text-pink-400' : 'text-white'}`}>{p.name}</h3>
+                                <p className="text-xs text-gray-500 font-mono mb-4 border-b border-gray-700 pb-2">{p.role}</p>
+                                <p className="text-xs text-gray-300 leading-relaxed min-h-[80px]">{p.desc}</p>
+                            </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (gameState.startsWith('ending')) {
+                const endingConfig = {
+                    'ending_A': { title: '結局 A: 寂靜的伺服器', desc: '環境毒性超載或生態系崩潰，頻道已成死城。所有的情勒最終只換來了虛無。', color: 'text-gray-500' },
+                    'ending_B': { title: '結局 B: 無間道輪迴', desc: '剝削機制過度啟動，墮入無限的互相傷害迴圈。', color: 'text-red-500' },
+                    'ending_C': { title: '結局 C: 鐵血烏托邦', desc: '絕對邊界壓制成功，成為缺乏人性的高強度運作機器。完美執行了主席的高壓獨裁。', color: 'text-blue-500' },
+                    'ending_D': { title: '結局 D: 虛假的真實', desc: '以虛構的溫暖掩蓋深層矛盾，迎來虛假的繁榮。你成功維持了表面的和諧，儘管大家都知道這只是幻影。', color: 'text-purple-400' }
+                };
+                const ec = endingConfig[gameState] || endingConfig['ending_A'];
+                return (
+                    <div className="flex flex-col items-center justify-center h-screen bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900 via-black to-black text-white p-8 space-y-8">
+                        <h1 className="text-5xl font-black text-gray-600 tracking-widest uppercase drop-shadow-xl">Simulation Terminated</h1>
+                        <h2 className={`text-6xl font-black ${ec.color} drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]`}>{ec.title}</h2>
+                        <p className="text-xl text-gray-400 font-mono text-center max-w-2xl leading-relaxed">{ec.desc}</p>
+                        <button onClick={() => window.location.reload()} className="px-10 py-5 mt-8 bg-gray-800 border border-gray-600 font-bold text-gray-200 hover:text-white hover:bg-gray-700 rounded-xl transition-all shadow-xl hover:shadow-gray-500/20 text-lg tracking-widest">重新開始</button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={`h-screen bg-black flex flex-col overflow-hidden relative text-white ${activeEffect === 'shake' ? 'animate-shake' : activeEffect === 'glitch' ? 'animate-glitch-screen' : ''}`}>
+                    {floatingTexts.map(ft => <FloatingText key={ft.id} text={ft.text} x={ft.x} y={ft.y} type={ft.type} />)}
+
+                    {/* Rules Modal */}
+                    {showRules && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                            <div className="bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-700 w-full max-w-lg rounded-2xl p-8 relative shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                                <button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={24}/></button>
+                                <h2 className="text-2xl font-black text-white mb-6 flex items-center"><Shield className="mr-3 text-blue-500"/> 規則</h2>
+                                <div className="space-y-5 text-gray-300 font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar pr-4">
+                                    <div className="border-l-2 border-red-500 pl-4 bg-red-950/10 py-2 rounded-r">
+                                        <strong className="text-red-400 block mb-1">穩定度 (SAN)</strong> 
+                                        點擊頻道時 50/50 觸發善惡事件，對應 SAN ±5。<br/>
+                                        上限防護：達到 115 強制推進章節，重置為 100，並獲得 1 點情勒值。<br/>
+                                        下限死亡：降至 60(含)以下，立即結算壞結局。
+                                    </div>
+                                    <div className="border-l-2 border-orange-500 pl-4 bg-orange-950/10 py-2 rounded-r">
+                                        <strong className="text-orange-400 block mb-1">阿英避難所</strong>
+                                        每章節限 3 次，消耗 1 金幣換取 15 點 SAN 值恢復。
+                                    </div>
+                                    <div className="border-l-2 border-purple-500 pl-4 bg-purple-950/10 py-2 rounded-r">
+                                        <strong className="text-purple-400 block mb-1">結算判定</strong>
+                                        最終結局受到你的 SAN 控制精準度與成員存活率的嚴格影響。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Target Selection Modal */}
+                    {showTargetModal && (
+                        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                            <div className="bg-gray-900 border border-purple-500 w-full max-w-md rounded-2xl p-6 shadow-[0_0_30px_rgba(168,85,247,0.4)]">
+                                <h2 className="text-xl font-black text-purple-400 mb-4 tracking-widest text-center">選擇痛扁目標</h2>
+                                <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2 mb-4">
+                                    {onlineMembers.map(m => (
+                                        <button key={m.id} onClick={() => executeUltimateSkill(m)} className="w-full text-left p-3 rounded-lg bg-gray-800 hover:bg-purple-900/50 border border-gray-700 hover:border-purple-500 transition-all flex justify-between items-center group">
+                                            <span className="font-bold text-gray-200 group-hover:text-white">{m.name}</span>
+                                            <span className="text-xs text-gray-500 group-hover:text-purple-300">{m.role}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={() => setShowTargetModal(false)} className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold rounded-lg transition-all">取消</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* D3-D6 Incident Modal */}
+                    {activeIncident && (
+                        <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-6 backdrop-blur-md">
+                            <div className="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-2xl p-10 font-mono shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+                                <h3 className={`text-2xl mb-6 flex items-center font-black ${INCIDENT_STAGES[activeIncident].color}`}>
+                                    <AlertTriangle className="mr-4 animate-pulse" size={36}/> {INCIDENT_STAGES[activeIncident].title}
+                                </h3>
+                                <div className="text-gray-300 mb-12 min-h-[120px] text-lg leading-relaxed bg-black/30 p-6 rounded-lg border border-gray-800">{INCIDENT_STAGES[activeIncident].content}</div>
+                                <button onClick={handleIncidentNext} className="w-full py-5 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 border border-gray-600 text-white font-bold text-lg rounded-xl transition-all shadow-lg hover:shadow-white/10 tracking-widest">
+                                    下一步
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Header */}
+                    <header className="h-16 bg-gradient-to-r from-gray-950 to-gray-900 border-b border-gray-800 flex items-center justify-between px-6 z-10 shrink-0 shadow-md">
+                        <div className="flex items-center space-x-6">
+                            <span className="text-red-500 font-black italic text-2xl tracking-tighter border-r border-gray-800 pr-6 pt-1 pb-1 leading-normal drop-shadow-[0_2px_4px_rgba(239,68,68,0.3)]">情勒俱樂部</span>
+                            <div className="flex items-center space-x-3">
+                                <span className="text-xs bg-gray-800 px-3 py-1.5 rounded-md text-gray-300 font-mono border border-gray-700 shadow-inner">DAY {turnDisplay === 0 ? 1 : turnDisplay}</span>
+                                <span className="px-3 py-1.5 rounded-md text-[10px] font-bold border border-indigo-900/50 bg-indigo-950/30 text-indigo-400 uppercase tracking-widest shadow-inner">{gameState.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <div className="flex space-x-8">
+                            <div className="flex items-center space-x-3 group">
+                                <HeartCrack className={`w-6 h-6 ${resources.san <= 65 ? 'text-red-500 animate-ping' : resources.san >= 110 ? 'text-cyan-400 animate-pulse drop-shadow-[0_0_5px_cyan]' : 'text-pink-600 drop-shadow-[0_0_5px_pink]'}`} />
+                                <div className="flex flex-col w-32">
+                                    <div className="flex justify-between text-[10px] text-gray-400 font-bold mb-1">
+                                        <span>SAN</span><span className={resources.san >= 115 ? 'text-cyan-400' : resources.san <= 60 ? 'text-red-500' : 'text-pink-400'}>{resources.san}</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden relative border border-gray-700 shadow-inner">
+                                        <div className={`h-full transition-all duration-300 ${resources.san <= 60 ? 'bg-red-600' : resources.san >= 115 ? 'bg-cyan-400' : 'bg-gradient-to-r from-pink-600 to-pink-400'}`} style={{ width: `${Math.min(100, (resources.san/150)*100)}%` }}></div>
+                                        <div className="absolute top-0 bottom-0 left-[40%] w-px bg-red-500/80"></div>
+                                        <div className="absolute top-0 bottom-0 left-[76.6%] w-px bg-cyan-400/80"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Heart className="w-5 h-5 text-purple-500 drop-shadow-[0_0_5px_purple]" />
+                                <span className="text-[10px] text-gray-400 font-bold tracking-wider hidden sm:inline">情勒值</span>
+                                <span className="font-bold font-mono text-lg text-purple-200">{resources.ebl}</span>
+                            </div>
+                            <div className="flex items-center space-x-2"><Coins className="w-5 h-5 text-yellow-500 drop-shadow-[0_0_5px_yellow]" /><span className="font-bold font-mono text-lg text-yellow-200">{resources.gold}</span></div>
+                        </div>
+                    </header>
+
+                    {/* Content Layer */}
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Sidebar Left */}
+                        <aside className="w-72 bg-gradient-to-b from-gray-900 to-gray-950 border-r border-indigo-900/30 p-5 flex flex-col space-y-3 z-10 overflow-y-auto custom-scrollbar shrink-0 shadow-[5px_0_15px_rgba(0,0,0,0.5)]">
+                            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 pl-1 drop-shadow-md">頻道選單</div>
+                            {CHANNELS.map(channel => (
+                                <button key={channel.id} onClick={() => handleChannelAction(channel)} disabled={!!activeIncident || isProcessing.current} className="group flex items-center justify-start space-x-4 p-3.5 rounded-xl bg-gray-800/80 border border-gray-700 hover:border-indigo-500/50 hover:bg-gray-800 transition-all flex-shrink-0 disabled:opacity-50 hover:shadow-[0_0_10px_rgba(79,70,229,0.2)]">
+                                    <div className={`p-2 rounded-lg bg-gray-950 ${channel.color}`}><channel.icon size={20} /></div>
+                                    <div className="text-left w-full">
+                                        <div className={`text-sm font-bold ${channel.color}`}>{channel.name}</div>
+                                    </div>
+                                </button>
+                            ))}
+                            
+                            <div className="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent my-2 flex-shrink-0"></div>
+                            
+                            <button onClick={() => setShowRules(true)} className="group flex items-center justify-center p-3 bg-gray-800/30 border border-gray-700 rounded-xl hover:bg-gray-800 hover:border-gray-500 transition-all text-gray-400 hover:text-white shadow-inner">
+                                <Shield className="mr-2 text-indigo-500 group-hover:scale-110 transition-transform" size={16}/>
+                                <span className="text-xs font-bold tracking-widest">規則</span>
+                            </button>
+                            
+                            <button onClick={visitShelter} disabled={!!activeIncident || isProcessing.current} className="flex flex-col items-start justify-center p-4 rounded-xl bg-gradient-to-br from-orange-950/20 to-orange-900/10 border border-orange-900/30 hover:border-orange-500/80 transition-all text-left flex-shrink-0 mt-auto disabled:opacity-50 hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] group relative">
+                                <div className="flex items-center space-x-3 mb-2 w-full">
+                                    <div className="p-2 bg-orange-900/30 rounded-lg group-hover:bg-orange-800/50 transition-colors"><SHELTER.icon size={18} className="text-orange-400" /></div>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-bold text-orange-400 tracking-wide">{SHELTER.name}</div>
+                                        <div className="text-[10px] text-orange-600/80 font-bold mt-0.5">剩餘: {3 - shelterUsageRef.current} / 3</div>
+                                    </div>
+                                </div>
+                                <div className="text-[10px] text-gray-500 w-full text-right font-mono tracking-tighter">-1 Gold / +15 SAN</div>
+                            </button>
+
+                            {resources.ebl >= 1 ? (
+                                <button onClick={openTargetModal} disabled={!!activeIncident || isProcessing.current} className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-900 hover:from-purple-500 hover:to-purple-800 text-white rounded-xl font-bold text-sm border border-purple-500 flex justify-center items-center space-x-2 flex-shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all mt-2">
+                                    <span className="text-lg drop-shadow-md">{hero?.skillIcon}</span><span className="tracking-wide">大絕招: {hero?.skill}</span>
+                                </button>
+                            ) : (
+                                <button disabled className="w-full py-4 bg-gray-900 text-gray-600 rounded-xl font-bold text-sm border border-gray-800 flex justify-center items-center space-x-2 flex-shrink-0 cursor-not-allowed mt-2">
+                                    <span className="text-lg opacity-50">🔒</span><span className="tracking-wide">需 1 點情勒值解鎖</span>
+                                </button>
+                            )}
+                        </aside>
+
+                        {/* Center Logs */}
+                        <main className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-black to-black p-6 overflow-y-auto custom-scrollbar shadow-inner relative min-w-[400px]">
+                            <div className="space-y-4">
+                                {logs.map((log, i) => (
+                                    <div key={i} className={`p-4 rounded-xl border-l-4 text-sm font-mono transition-all backdrop-blur-sm ${
+                                        log.type === 'alert' ? 'bg-red-950/30 border-red-500 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.1)]' :
+                                        log.type === 'chapter' ? 'bg-gradient-to-r from-transparent via-blue-900/20 to-transparent border-blue-500 text-blue-300 py-6 text-center font-bold tracking-[0.2em] border-l-0 border-t border-b my-8 shadow-sm' :
+                                        log.type === 'story' ? 'bg-indigo-950/20 border-indigo-500 text-indigo-100 font-bold shadow-[0_0_15px_rgba(99,102,241,0.1)]' :
+                                        log.type === 'skill' ? 'bg-purple-950/30 border-purple-400 text-purple-200' :
+                                        log.type === 'heal' ? 'bg-orange-950/20 border-orange-500 text-orange-200' :
+                                        log.type === 'success' ? 'bg-green-950/30 border-green-500 text-green-200 shadow-[0_0_10px_rgba(34,197,94,0.1)]' :
+                                        'bg-gray-900/40 border-gray-700 text-gray-300'
+                                    }`}>
+                                        {log.timestamp !== 'SYS' && <div className="text-[10px] text-gray-500 mb-1.5 opacity-80 tracking-tighter">[{log.timestamp}]</div>}
+                                        <div className="leading-relaxed tracking-wide">{log.text}</div>
+                                    </div>
+                                ))}
+                                <div ref={logsEndRef} className="h-4" />
+                            </div>
+                        </main>
+
+                        {/* Sidebar Right - Members */}
+                        <aside className="w-72 bg-gradient-to-b from-gray-900 to-gray-950 border-l border-indigo-900/30 p-5 overflow-y-auto z-10 custom-scrollbar shrink-0 shadow-[-5px_0_15px_rgba(0,0,0,0.5)]">
+                            <div className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-4 pl-1 drop-shadow-md">線上</div>
+                            <div className="space-y-2.5 mb-6">
+                                {onlineMembers.map(member => (
+                                    <div key={member.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                        member.status === 'npc' ? 'bg-indigo-950/30 border-indigo-900/50 shadow-inner' : 'bg-gray-800/80 border-gray-700 shadow-md'
+                                    }`}>
+                                        <div className="flex items-center space-x-3 w-full">
+                                            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${member.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]'}`}></div>
+                                            <div className="overflow-hidden">
+                                                <div className="text-xs font-bold truncate tracking-wide text-gray-100">{member.name}</div>
+                                                <div className="text-[9px] text-gray-400 font-mono truncate mt-0.5">{member.role}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {offlineMembers.length > 0 && (
+                                <>
+                                    <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 pl-1 drop-shadow-md">線下</div>
+                                    <div className="space-y-2.5">
+                                        {offlineMembers.map(member => (
+                                            <div key={member.id} className="flex items-center justify-between p-3 rounded-xl border transition-all bg-black/50 border-gray-800/50 opacity-40 grayscale">
+                                                <div className="flex items-center space-x-3 w-full">
+                                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]"></div>
+                                                    <div className="overflow-hidden">
+                                                        <div className="text-xs font-bold truncate tracking-wide line-through text-gray-500">{member.name}</div>
+                                                        <div className="text-[9px] text-gray-400 font-mono truncate mt-0.5">{member.role}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </aside>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EmotionalBlackmailClub />);
+    </script>
+</body>
+</html>
