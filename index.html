@@ -161,7 +161,7 @@
               bad: ["老八出局，運氣極差，跟你是個魯蛇一樣。", "被發牌員針對，想玩的陣容全部同行。"] },
             { id: 'movie', name: '影城', icon: Play, desc: '假裝我們有正常社交', type: 'leisure', color: 'text-purple-400',
               good: ["約到人一起看電影，享受了難得的放鬆時光。", "電影劇情超好看，獲得了深刻的情感共鳴。"],
-              bad: ["約看電影，阿偉要去幹68號沒空，你只好自己去。", "電影太爛，浪費時間又浪費錢，心情更差了。"] }
+              bad: ["約看電影，阿偉要去找68號沒空，你只好自己去。", "電影太爛，浪費時間又浪費錢，心情更差了。"] }
         ];
 
         const SHELTER = { id: 'aying', name: '阿英炒麵', icon: Utensils, cost: 1, heal: 15 };
@@ -357,7 +357,7 @@
                 if (!gameState.startsWith('act') || isProcessing.current) return;
                 
                 if (resources.san <= 60) {
-                    setLogs(prev => [...prev, { text: '【吸收壁 B 觸發】SAN 跌破閾值，系統無法承受環境毒性，強制進入結算程序。', type: 'alert', timestamp: 'SYS' }]);
+                    setLogs(prev => [...prev, { text: '【 B 觸發】SAN 跌破閾值，系統無法承受環境毒性，強制進入結算程序。', type: 'alert', timestamp: 'SYS' }]);
                     isProcessing.current = true;
                     setTimeout(() => evaluateEnding(true), 2000);
                 }
@@ -537,7 +537,7 @@
                     <div className="flex flex-col items-center justify-start min-h-screen bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950 via-gray-900 to-black text-white p-4 sm:p-8 overflow-y-auto custom-scrollbar">
                         <div className="max-w-6xl w-full flex flex-col items-center py-6">
                             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500 tracking-widest glitch-text z-10 text-center drop-shadow-[0_0_20px_rgba(236,72,153,0.5)] leading-tight mb-2">情勒俱樂部</h1>
-                            <h2 className="text-lg sm:text-2xl text-pink-400 font-bold tracking-widest z-10 animate-pulse drop-shadow-md text-center mb-10">歡迎來到溫慢的情勒俱樂部&gt;&lt;</h2>
+                            <h2 className="text-lg sm:text-2xl text-pink-400 font-bold tracking-widest z-10 animate-pulse drop-shadow-md text-center mb-10">歡迎來到可愛的情勒俱樂部&gt;&lt;</h2>
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full z-10">
                                 {PROTAGONISTS.map(p => (
