@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>情勒俱樂部：編年史</title>
     
@@ -108,6 +108,7 @@
         const AlertTriangle = (props) => <IconBase {...props}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></IconBase>;
         const Play = (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"></polygon></IconBase>;
         const X = (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>;
+        const Users = (props) => <IconBase {...props}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></IconBase>;
 
         // --- Audio Engine ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -265,6 +266,7 @@
             const [activeIncident, setActiveIncident] = useState(null);
             const [showRules, setShowRules] = useState(false);
             const [showTargetModal, setShowTargetModal] = useState(false);
+            const [showMembersModal, setShowMembersModal] = useState(false);
             const [floatingTexts, setFloatingTexts] = useState([]);
             const logsEndRef = useRef(null);
 
@@ -532,18 +534,20 @@
 
             if (gameState === 'start') {
                 return (
-                    <div className="flex flex-col items-center justify-start min-h-screen bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950 via-gray-900 to-black text-white p-4 sm:p-8 overflow-y-auto">
+                    <div className="flex flex-col items-center justify-start min-h-screen bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950 via-gray-900 to-black text-white p-4 sm:p-8 overflow-y-auto custom-scrollbar">
                         <div className="max-w-6xl w-full flex flex-col items-center py-6">
                             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500 tracking-widest glitch-text z-10 text-center drop-shadow-[0_0_20px_rgba(236,72,153,0.5)] leading-tight mb-2">情勒俱樂部</h1>
-                            <h2 className="text-lg sm:text-2xl text-pink-400 font-bold tracking-widest z-10 animate-pulse drop-shadow-md text-center mb-10">歡迎來到溫暖的情勒俱樂部&gt;&lt;</h2>
+                            <h2 className="text-lg sm:text-2xl text-pink-400 font-bold tracking-widest z-10 animate-pulse drop-shadow-md text-center mb-10">歡迎來到溫慢的情勒俱樂部&gt;&lt;</h2>
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full z-10">
                                 {PROTAGONISTS.map(p => (
-                                <button key={p.id} onClick={() => {setHero(p); setGameState('act1'); try{playSound('click');}catch(e){}}} className={`group relative p-6 border border-gray-700/50 rounded-2xl bg-gray-900/80 backdrop-blur-sm transition-all hover:-translate-y-1 text-left ${p.glow} shadow-xl flex flex-col`}>
+                                <button key={p.id} onClick={() => {setHero(p); setGameState('act1'); try{playSound('click');}catch(e){}}} className={`group relative p-6 border border-gray-700/50 rounded-2xl bg-gray-900/80 backdrop-blur-sm transition-all hover:-translate-y-1 text-left ${p.glow} shadow-xl flex flex-col min-h-[300px]`}>
                                     <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">{p.skillIcon}</div>
                                     <h3 className={`text-xl font-black mb-1 tracking-wide ${p.id === 'meow' ? 'text-pink-400' : 'text-white'}`}>{p.name}</h3>
                                     <p className="text-[10px] text-gray-500 font-mono mb-3 border-b border-gray-700 pb-1 uppercase">{p.role}</p>
-                                    <p className="text-xs text-gray-300 leading-relaxed flex-grow overflow-y-auto max-h-32 sm:max-h-none">{p.desc}</p>
+                                    <div className="overflow-y-auto custom-scrollbar flex-grow pr-1">
+                                        <p className="text-xs text-gray-300 leading-relaxed">{p.desc}</p>
+                                    </div>
                                 </button>
                                 ))}
                             </div>
@@ -618,6 +622,44 @@
                         </div>
                     )}
 
+                    {/* Mobile Members Modal */}
+                    {showMembersModal && (
+                        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 lg:hidden">
+                            <div className="bg-gray-900 border border-indigo-900/50 w-full max-w-md rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.4)] flex flex-col h-[80vh]">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-black text-indigo-400 tracking-widest uppercase">成員列表</h2>
+                                    <button onClick={() => setShowMembersModal(false)} className="text-gray-500 hover:text-white transition-colors"><X size={24}/></button>
+                                </div>
+                                <div className="overflow-y-auto custom-scrollbar flex-grow pr-2">
+                                    <div className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-4 drop-shadow-md">線上成員</div>
+                                    <div className="space-y-2.5 mb-6">
+                                        {onlineMembers.map(member => (
+                                            <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl border bg-gray-800/80 border-gray-700">
+                                                <div className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-blue-400 animate-pulse'}`}></div>
+                                                <div className="overflow-hidden">
+                                                    <div className="text-xs font-bold text-gray-100 truncate">{member.name}</div>
+                                                    <div className="text-[9px] text-gray-500 truncate">{member.role}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-4 drop-shadow-md">離線 / 已登出</div>
+                                    <div className="space-y-2.5">
+                                        {offlineMembers.map(member => (
+                                            <div key={member.id} className="flex items-center space-x-3 p-3 rounded-xl border bg-black/50 border-gray-800/50 opacity-40 grayscale">
+                                                <div className="w-2 h-2 rounded-full bg-red-800"></div>
+                                                <div className="overflow-hidden">
+                                                    <div className="text-xs font-bold text-gray-600 line-through truncate">{member.name}</div>
+                                                    <div className="text-[9px] text-gray-700 truncate">{member.role}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* D3-D6 Incident Modal */}
                     {activeIncident && (
                         <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md">
@@ -636,10 +678,18 @@
                     {/* Header */}
                     <header className="h-auto sm:h-16 bg-gradient-to-r from-gray-950 to-gray-900 border-b border-gray-800 flex flex-col sm:flex-row items-center justify-between px-4 py-3 sm:py-0 z-10 shrink-0 shadow-md gap-4 sm:gap-0">
                         <div className="flex items-center justify-between w-full sm:w-auto space-x-4">
-                            <span className="text-red-500 font-black italic text-xl tracking-tighter sm:border-r sm:border-gray-800 sm:pr-4 leading-none pt-1">情勒俱樂部</span>
-                            <div className="flex items-center space-x-2">
-                                <span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-300 font-mono border border-gray-700">DAY {turnDisplay === 0 ? 1 : turnDisplay}</span>
-                                <span className="px-2 py-1 rounded text-[10px] font-bold border border-indigo-900/50 bg-indigo-950/30 text-indigo-400 uppercase tracking-tighter">{gameState.toUpperCase()}</span>
+                            <div className="flex items-center">
+                                <span className="text-red-500 font-black italic text-xl tracking-tighter sm:border-r sm:border-gray-800 sm:pr-4 leading-none pt-1">情勒俱樂部</span>
+                                <div className="hidden sm:flex items-center space-x-2 ml-4">
+                                    <span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-300 font-mono border border-gray-700">DAY {turnDisplay === 0 ? 1 : turnDisplay}</span>
+                                    <span className="px-2 py-1 rounded text-[10px] font-bold border border-indigo-900/50 bg-indigo-950/30 text-indigo-400 uppercase tracking-tighter">{gameState.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            
+                            {/* Mobile Info Buttons */}
+                            <div className="flex lg:hidden items-center space-x-2">
+                                <button onClick={() => setShowRules(true)} className="p-2 bg-gray-800/50 border border-gray-700 rounded-lg text-indigo-400 active:scale-95"><Shield size={18} /></button>
+                                <button onClick={() => setShowMembersModal(true)} className="p-2 bg-gray-800/50 border border-gray-700 rounded-lg text-green-400 active:scale-95"><Users size={18} /></button>
                             </div>
                         </div>
                         
@@ -740,7 +790,7 @@
                             <div className="space-y-2 mb-6">
                                 {onlineMembers.map(member => (
                                     <div key={member.id} className="flex items-center space-x-3 p-2.5 rounded-lg bg-gray-800/50 border border-gray-700">
-                                        <div className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-500' : 'bg-blue-400 animate-pulse'}`}></div>
+                                        <div className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-blue-400 animate-pulse'}`}></div>
                                         <div className="overflow-hidden">
                                             <div className="text-xs font-bold text-gray-100 truncate">{member.name}</div>
                                             <div className="text-[9px] text-gray-500 truncate">{member.role}</div>
